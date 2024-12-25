@@ -4,43 +4,55 @@ import Button from '@mui/material/Button';
 import SendIcon from '@mui/icons-material/Send';
 import './searchbox.css';
 
-export default function SearchBox() {
+export default function SearchBox({ updateInfo }) {
     const [city, setCity] = useState('');
+    const [error, setError] = useState(null); // State for storing error messages
     const API_URL = "https://api.openweathermap.org/data/2.5/weather";
     const API_KEY = "ecc502a1b82f729f91c8493bb0886939";
 
-    let getWeatherInfo = async (city) => {
-        let response = await fetch(`${API_URL}?q=${city}&appid=${API_KEY}`);
-        let jsonResponse = await response.json();
-        console.log(jsonResponse);
-        let result = {
-            city:city,
-            temp: jsonResponse.main.temp,
-            tempMin: jsonResponse.main.temp_min,
-            tempMax: jsonResponse.main.temp_max,
-            humidity: jsonResponse.main.humidity,
-            feelsLike: jsonResponse.main.feels_like,
-             weather: jsonResponse.weather[0].description,
-
-        };
-        console.log(result);
+    let getWeatherInfo = async () => {
+        setError(null); // Clear previous errors before fetching
+        try {
+            let response = await fetch(`${API_URL}?q=${city}&appid=${API_KEY}&units=metric`);
+            if (!response.ok) {
+                throw new Error(`City not found: ${response.statusText}`);
+            }
+            let jsonResponse = await response.json();
+            let result = {
+                city: jsonResponse.name || "Unknown",
+                temp: jsonResponse.main?.temp || 0,
+                tempMin: jsonResponse.main?.temp_min || 0,
+                tempMax: jsonResponse.main?.temp_max || 0,
+                humidity: jsonResponse.main?.humidity || 0,
+                feelsLike: jsonResponse.main?.feels_like || 0,
+                weather: jsonResponse.weather?.[0]?.description || "No description",
+            };
+            return result;
+        } catch (error) {
+            setError(error.message); // Set error message
+            return null;
+        }
     };
-
 
     let handleChange = (e) => {
         setCity(e.target.value);
     };
 
-    let handleSubmit = (e) => {
+    let handleSubmit = async (e) => {
         e.preventDefault();
-        console.log(city);
-        setCity('');
-        getWeatherInfo(city);
+        if (!city.trim()) {
+            setError("City name cannot be empty.");
+            return;
+        }
+        let newInfo = await getWeatherInfo();
+        if (newInfo) {
+            updateInfo(newInfo); // Update weather info only if valid data is returned
+        }
+        setCity(''); // Clear city input
     };
 
     return (
         <div className="SearchBox">
-            <h3>Search for Weather</h3>
             <form onSubmit={handleSubmit}>
                 <TextField
                     id="city"
@@ -55,6 +67,7 @@ export default function SearchBox() {
                     Search
                 </Button>
             </form>
+            {error && <p style={{ color: 'red', marginTop: '10px' }}>{error}</p>} {/* Error message */}
         </div>
     );
 }
